@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What a third-party app can and can't do on iPhone Duo</title>
+<meta name="description" content="Notes from building Pitch Mode for iPhone Duo: the outer display is camera-only for third-party apps, sceneAccessory for external displays, hinge posture, and keeping content off the fold.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header>
+    <img src="icon.png" alt="Pitch Mode icon">
+    <div>
+      <h1>What a third-party app can and can't do on iPhone Duo</h1>
+      <p>Notes from building <a href="index.html">Pitch Mode</a>, October 2026</p>
+    </div>
+  </header>
+
+  <p>I built a presenter app for the iPhone Duo and shipped it the week before the Duo went on sale. The idea I started with turned out to be impossible under the current APIs, and what replaced it taught me how Apple wants foldable apps to behave. This is what I learned, with the API names, so you can skip the dead ends.</p>
+
+  <h2>The idea that doesn't work: slides facing the client, notes facing you</h2>
+  <p>A foldable phone with two screens looks like the perfect presenter: the outer display shows the slide to the person across the table, the inner display shows your notes. It is not buildable today.</p>
+  <p>On iOS 27, a third-party app can only drive both Duo displays at once through <code>CameraCaptureAccessory</code>, and that requires an active camera session with a visible camera preview. An Apple engineer on the Developer Forums said plainly that camera use is the only supported dual-display case right now. You could fake a camera session to unlock the outer screen, but it is against the stated intent of the API, your client would see the camera-in-use indicator, and App Review would have every reason to reject it. I didn't.</p>
+  <p>The second thing that bites: an app cannot open a new window on the outer display. Scene requests made while the phone is closed can fail. Any design that assumes a second window on the Duo needs a fallback.</p>
+
+  <h2>What works instead: the TV gets the slide, the Duo becomes the console</h2>
+  <p>iOS 27 adds <code>View.sceneAccessory(content:)</code> and <code>ExternalNonInteractiveAccessory</code>. You declare content the system should show when a capability is available, in this case an AirPlay or USB-C display. The external display shows only your accessory content; nothing on the phone is mirrored. Apple's own documentation example for it is a presentation preview, which is exactly the use.</p>
+  <p>Two practical notes. First, the Info.plist external-display scene role alone no longer gives you a non-mirrored screen on iOS 27; the external scene connects only after an accessory is registered, otherwise the system mirrors the phone. Second, use <code>onAvailabilityChange</code> to light up the Present button when a display connects, and keep the app fully functional without one, since the system can take the display away at any time.</p>
+  <p>With the slide on the TV, the Duo's 7.6-inch inner display is free to be a real presenter console: current slide, next slide, speaker notes at a readable size, a timer, and one-tap jumps to tagged slides.</p>
+
+  <h2>Hinge posture</h2>
+  <p>The iOS 27.1 SDK reports the hinge through <code>onHingeChange</code> in SwiftUI (<code>UIHingeInteraction</code> in UIKit). You get a status of closed, partially open or fully open, plus a live angle. A nil hinge means the device isn't foldable, so the same code runs on a regular iPhone.</p>
+  <p>Pitch Mode uses one posture for one purpose: when the phone is partially open, standing on a table like a book, the console switches to a glance layout with 96-point Back and Next buttons and bigger timers, because you're reading it from arm's length while talking. Fully open, it's the two-pane console. Closed, it's a stacked console on the outer display.</p>
+
+  <h2>Branch on size class, not on the device</h2>
+  <p>The inner display is regular width and regular height; the outer display is compact width. Everything in the app lays out by size class, never by model name or screen size, so Split View on the inner display, landscape on a normal iPhone, and the closed Duo all fall out of the same code. The one Duo-specific piece is the fold.</p>
+
+  <h2>Keep content off the fold</h2>
+  <p>iOS 27.1 reports the fold as a reserved region: <code>GeometryProxy.reservedRegions(kind: .division)</code>. Pitch Mode's split view reads that region, pads it by the margins the system reports, and puts one pane on each side. If the fold is vertical you get left and right panes; rotate the phone and the same code gives top and bottom panes. A hinge can be reported as a zero-width line, and that still counts as a fold to avoid. When no region is reported, it falls back to an even split with a gutter.</p>
+  <p>The thing that made open, close and rotate painless was keeping presentation state out of the view tree. The current slide and the timers live in one object owned by the app, so the console can be torn down and rebuilt for a new size class without the slide number changing mid-pitch.</p>
+
+  <h2>Things I could only test in the simulator</h2>
+  <p>Honesty section. Apple's Device Hub can open and close the simulated Duo, but there is no command-line hinge control, so the posture changes were verified with snapshot renders and injected postures rather than a live fold. The app has run on a real iPhone 16 Pro Max with an Apple TV; it has not yet run on a real Duo. Mine arrives on launch day and a 1.0.1 will follow whatever I find.</p>
+
+  <h2>Face-to-face mode is still in the code</h2>
+  <p>The outer-display design is built and switched off behind a flag. If Apple ever opens a non-camera outer-display accessory, it's a flag flip. I think the demand will be obvious once people hold the device: a foldable phone wants to show something to the person on the other side.</p>
+
+  <p>Pitch Mode is <a href="https://apps.apple.com/us/app/pitch-mode-slide-presenter/id6821425392">on the App Store</a> for $7.99, with no account and no network access at all. Questions about any of the APIs above: <a href="mailto:pitch-mode@chrisarrow.com">pitch-mode@chrisarrow.com</a>.</p>
+
+  <nav><a href="index.html">Pitch Mode</a> · <a href="privacy.html">Privacy Policy</a> · © 2026 Chris Arrow</nav>
+</main>
+</body>
+</html>

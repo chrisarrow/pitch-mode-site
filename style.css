@@ -16,3 +16,5 @@ nav { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--card); co
 
 a.store{display:inline-block;padding:.5em 1em;border-radius:999px;background:#0a84ff;color:#fff;text-decoration:none;font-weight:600}
 a.store:hover{background:#0066cc}
+
+code{font-family:ui-monospace,Menlo,monospace;font-size:.92em;background:rgba(127,127,127,.15);padding:.1em .3em;border-radius:4px}
